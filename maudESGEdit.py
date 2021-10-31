@@ -41,6 +41,7 @@ helpWindowText = """
 <h4>Rubbish data points</h4>
 <P>Rubbish data points occur when you  have either a parasite signal or gaps in your data collection. MAUD can exclude 2theta ranges, but will fail if the parasite signals occur at inconsistent 2theta values. This utility allows to browse through all azimuth in an ESG file and remove these rubbish data points.</P>
 <P>How to proceed to remove rubbish data points?<ul>
+<li>Click on the zoom icon before you start, to activate the zoom mode,</li>
 <li>Zoom-in on the data points you wish to remove,</li>
 <li>Click on <i>Remove data points</i> or hit <i>Ctr-d</i>.</li>
 </ul>
@@ -62,6 +63,10 @@ helpWindowText = """
 <h4>Navigation and file management</h4>
 <P>You can navigate between spectra using the <i>Previous</i> or <i>Next</i> buttons or by using the <i>left</i> and <i>right</i> keyboard keys.</P>
 <P>When you are done, save your new data in a new ESG file.</P>
+
+<h4>Masks</h4>
+<P>As you remove rubbish data points, we record 2theta ranges along with the corresponding azimuths. You can save these ranges in a file, with a <i>msk</i> extension to reuse them later.</P>
+<P>If you want to remove the same data ranges as in a previous processing, use the <i>Mask -> Load and apply mask<i>menu item.</P>
 
 <h4>Final note</h4>
 <P>Is this data manipulation? If you use this sotware to remove actual data, it is. If you use this software to clean up spectra (due to gaps in your detectors, for instance), it is not.</P>
@@ -108,7 +113,7 @@ import copy
 
 #################################################################
 #
-# Save a read MAUD es files
+# Save a read MAUD esg files, mask files
 #
 #################################################################
 
@@ -193,6 +198,53 @@ def saveEsgToFile(esgData,filename):
 	f.write(string)
 	f.close()
 	return
+
+def saveMaskToFile(mask, filename):
+	string = "# Version: 1.0\n# Mask for maudESGEdit\n# Each line: azimuth number, 2theta range to remove\n# Looks a bit like a cif file, but not a true CIF\n#\n"
+	string += "\nloop_\n_esg_azimuth_number _esg_2theta_delete_min _esg_2theta_delete_max\n"
+	items = []
+	# Creation command was self.mask.append({"set":True, "eta": self.etaToPlot, "clear2thetamin": left, "clear2thetamax": right})
+	# Removing empty items
+	for item in mask:
+		if (item["set"]):
+			items.append(item)
+	# Sorting mask
+	items = sorted(items, key=lambda d: (d['eta'],d['clear2thetamin'])) 
+	# Adding to string
+	for item in items:
+		string += "%i %f %f\n" % (item["eta"], item["clear2thetamin"], item["clear2thetamax"])
+	string += "\n"
+	# Ready to save
+	f = open(filename, 'w')
+	f.write(string)
+	f.close()
+	return
+
+def loadMaskFromFile(filename):
+	mask = []
+	# Read the Mask file, Reads all the lines and saves it to the array "content"
+	f = open(filename, 'r')
+	logcontent = [line.strip() for line in f.readlines()]
+	f.close()
+	# Locating mask data. They start with _esg_azimuth_number. We look for lines with this
+	lookup = "_esg_azimuth_number"
+	linesdb = []
+	for num, line in enumerate(logcontent, 0):
+		if lookup in line:
+			linesdb.append(num)
+	for linestart in linesdb:
+		line = linestart + 1 # Starting 3 lines below marker
+		test = True
+		while test:
+			elts = (logcontent[line]).split()
+			if (len(elts) < 3):
+				test = False # We reached the end
+			else:
+				# We search for information we need
+				mask.append({"set":True, "eta": int(elts[0]), "clear2thetamin": float(elts[1]), "clear2thetamax": float(elts[2])})
+			line += 1
+	return mask
+	
 
 #################################################################
 #
@@ -356,12 +408,14 @@ class plotEsg(PyQt5.QtWidgets.QMainWindow):
 		self.needToSave = False		# Set True when something has been changed in the data
 		self.olddata = []			# For cancel actions, so we can go back
 		self.oldetaToPlot = []		# For cancel actions, so we can go back
+		self.mask = []				# Saving mask, 2 theta ranges and azimuth at which to remove data
 		self.fileSaveHint = None	# Hint for file saving
 		self.xbg = []				# Used for creating background
 		self.ybg = []				# Used for creating background
 		self.dounzoom = True		# Unzoom when replotting default)
 		self.nautobg = 5			# Number of points for auto-background
 		self.doautobg = False		# Shall we do autobg?
+		self.pathtomask = None		# Path no mask file
 		# Done setting variables, preparing the gui
 		self.create_main_frame()
 		self.on_draw()
@@ -381,6 +435,7 @@ class plotEsg(PyQt5.QtWidgets.QMainWindow):
 		fileMenu = mainMenu.addMenu('File')
 		editMenu = mainMenu.addMenu('Edit data')
 		bgMenu = mainMenu.addMenu('Background')
+		maskMenu = mainMenu.addMenu('Mask')
 		helpMenu = mainMenu.addMenu('Help')
 		
 		openButton = PyQt5.QtWidgets.QAction(PyQt5.QtGui.QIcon.fromTheme("document-open"), 'Open ESG...', self)
@@ -456,6 +511,17 @@ class plotEsg(PyQt5.QtWidgets.QMainWindow):
 		delButton.setStatusTip('This will set the minimum intensity value for all datasets.')
 		delButton.triggered.connect(self.setmin_data_all)
 		bgMenu.addAction(delButton)
+		
+		loadMaskButton = PyQt5.QtWidgets.QAction(PyQt5.QtGui.QIcon.fromTheme("document-open"), 'Load and apply mask...', self)
+		loadMaskButton.setShortcut('Ctrl+M')
+		loadMaskButton.setStatusTip('Load and apply a mask')
+		loadMaskButton.triggered.connect(self.load_and_apply_mask)
+		maskMenu.addAction(loadMaskButton)
+		
+		saveMaskButton = PyQt5.QtWidgets.QAction(PyQt5.QtGui.QIcon.fromTheme("document-save-as"), 'Save mask...', self)
+		saveMaskButton.setStatusTip('Save the mask to reuse later')
+		saveMaskButton.triggered.connect(self.save_mask)
+		maskMenu.addAction(saveMaskButton)
 		
 		aboutButton = PyQt5.QtWidgets.QAction(PyQt5.QtGui.QIcon.fromTheme("help-contents"), 'User manual...', self)
 		aboutButton.setShortcut('Ctrl+H')
@@ -709,6 +775,8 @@ class plotEsg(PyQt5.QtWidgets.QMainWindow):
 			# Saving old data for undos
 			self.olddata.append(data)
 			self.oldetaToPlot.append(self.etaToPlot)
+			# Saving range to remove to mask
+			self.mask.append({"set":True, "eta": self.etaToPlot, "clear2thetamin": left, "clear2thetamax": right})
 			# Remove points within our range
 			toremove = []
 			for i in range(data.shape[0]):
@@ -772,6 +840,7 @@ class plotEsg(PyQt5.QtWidgets.QMainWindow):
 				# Replot
 			if (len(self.olddata) == 0):
 				self.cancelButton.setDisabled(True)
+			self.mask.pop() # Remove last addition to mask
 			self.on_draw()
 	
 	"""
@@ -800,6 +869,56 @@ class plotEsg(PyQt5.QtWidgets.QMainWindow):
 			path, name = os.path.split(fileName)
 			self.title = "MAUD ESG edit: " + name
 			self.setWindowTitle(self.title)
+
+	"""
+	Save current mask
+	"""
+	def save_mask(self,evt=None):
+		options = PyQt5.QtWidgets.QFileDialog.Options()
+		fileName, _ = PyQt5.QtWidgets.QFileDialog.getSaveFileName(self,"Save mask as...", "","maudESGEdit Mask Files (*.msk);;All Files (*)", options=options)
+		if fileName:
+			saveMaskToFile(self.mask,fileName)
+			
+	"""
+	Load and apply a mask
+	"""
+	def load_and_apply_mask(self,evt=None):
+		if (self.nEta<1):
+			PyQt5.QtWidgets.QMessageBox.critical(self, "Error", "Please load some data first")
+			return
+		if (self.needToSave):
+			buttonReply = PyQt5.QtWidgets.QMessageBox.question(self, 'Data not saved', "Data not saved. Load and apply a mask anyway? Previous mask will be lost. Things may crash if you try to undo.", PyQt5.QtWidgets.QMessageBox.Yes | PyQt5.QtWidgets.QMessageBox.No, PyQt5.QtWidgets.QMessageBox.No)
+			if (buttonReply == PyQt5.QtWidgets.QMessageBox.No):
+				return
+		options = PyQt5.QtWidgets.QFileDialog.Options()
+		filename, _ = PyQt5.QtWidgets.QFileDialog.getOpenFileName(self,"Select an mask file...", self.pathtomask,"maudESGEdit Mask Files (*.msk);;All Files (*)", options=options)
+		if filename:
+			self.pathtomask = os.path.dirname(filename)
+			self.mask = loadMaskFromFile(filename)
+			# Saving old data for undos
+			data = copy.deepcopy(self.esgData["data"])
+			self.olddata.append(data)
+			self.oldetaToPlot.append("all")
+			# Remove points in the mask
+			for item in self.mask:
+				if (item["set"]):
+					#self.mask.append({"set":True, "eta": self.etaToPlot, "clear2thetamin": left, "clear2thetamax": right})
+					eta = item["eta"]
+					min2theta = item["clear2thetamin"]
+					max2theta = item["clear2thetamax"]
+					thisetadata = numpy.asarray(self.esgData["data"][eta])
+					toremove = []
+					for j in range(thisetadata.shape[0]):
+						twotheta = thisetadata[j,0]
+						intensity = thisetadata[j,2]
+						if ((twotheta<max2theta) and (twotheta>min2theta)):
+							toremove.append(j)
+					thisetadata = numpy.delete(thisetadata,toremove,0)
+					self.esgData["data"][eta] = thisetadata.tolist()
+			self.needToSave = True
+			self.cancelButton.setDisabled(False)
+			self.on_draw()
+			
 			
 	"""
 	Open a different esg
@@ -822,6 +941,7 @@ class plotEsg(PyQt5.QtWidgets.QMainWindow):
 			self.etaToPlot = 0
 			self.etaNBox.setText("%d" % (self.etaToPlot))
 			self.olddata = [] # Deleting cached old data to avoid confusion
+			self.mask = []	# clear mask
 			self.setWindowTitle(self.title)
 			self.needToSave = False
 			self.tthetaButton.setDisabled(False)
@@ -895,6 +1015,7 @@ class plotEsg(PyQt5.QtWidgets.QMainWindow):
 			# Saving old data for undos
 			self.olddata.append(data.copy())
 			self.oldetaToPlot.append(self.etaToPlot)
+			self.mask.append({"set":False}); # Adding an empty value in saved mask. Necessary for proper handle of undos
 			# Remove background within our range
 			xmin = min(self.xbg)
 			xmax = max(self.xbg)
@@ -929,6 +1050,7 @@ class plotEsg(PyQt5.QtWidgets.QMainWindow):
 				# Saving old data for undos
 				self.olddata.append(data.copy())
 				self.oldetaToPlot.append(self.etaToPlot)
+				self.mask.append({"set":False}); # Adding an empty value in saved mask. Necessary for proper handle of undos
 				# Adding to the intensity
 				data[:,2] += shift
 				self.esgData["data"][self.etaToPlot] = data.tolist()
@@ -952,6 +1074,7 @@ class plotEsg(PyQt5.QtWidgets.QMainWindow):
 			data = copy.deepcopy(self.esgData["data"])
 			self.olddata.append(data)
 			self.oldetaToPlot.append("all")
+			self.mask.append({"set":False}); # Adding an empty value in saved mask. Necessary for proper handle of undos
 			# Shifting intensities
 			for i in range(0,self.nEta):
 				thisetadata = numpy.asarray(self.esgData["data"][i])
@@ -979,6 +1102,7 @@ class plotEsg(PyQt5.QtWidgets.QMainWindow):
 			data = copy.deepcopy(self.esgData["data"])
 			self.olddata.append(data)
 			self.oldetaToPlot.append("all")
+			self.mask.append({"set":False}); # Adding an empty value in saved mask. Necessary for proper handle of undos
 			# Shifting intensities
 			for i in range(0,self.nEta):
 				thisetadata = numpy.asarray(self.esgData["data"][i])
