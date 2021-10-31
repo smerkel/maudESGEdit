@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+# Make it work in python 2 or 3
+from __future__ import print_function
 
 """
 Copyright (C) S. Merkel, Universite de Lille, France
@@ -21,10 +23,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
 # Some text for the GUI. I put it on top so it is easier to upate
-bottomWindowLabel = "Utility to fix data in esg files for MAUD (c) 2020, S. Merkel, Univ. Lille"
+bottomWindowLabel = "Utility to fix data in esg files for MAUD (c) 2020-now, S. Merkel, Univ. Lille"
 aboutWindowText = """
 <h3>MAUD ESG editor</h3>
-(c) 2020, S. Merkel, Univ. Lille
+(c) 2020-now, S. Merkel, Univ. Lille
 <P>Utility to fix data in ESG files before Rietveld refinement in MAUD.</P>
 <P>This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.</P>
 <P>The source code is available online at https://github.com/smerkel/maudESGEdit/.</P>
@@ -122,7 +124,7 @@ def parseESG(filename):
 	# Reads number of spectra found
 	text = open(filename).read()
 	nspectra = int(text.count('loop_'))
-	# print "Looking at file %s I found %d spectra." % (filename, nspectra)
+	# print ("Looking at file %s I found %d spectra." % (filename, nspectra))
 	# Read the ESG file, Reads all the lines and saves it to the array "content"
 	f = open(filename, 'r')
 	logcontent = [line.strip() for line in f.readlines()]
@@ -171,7 +173,7 @@ def parseESG(filename):
 				twotetha = math.degrees(math.atan(float(a[0])/detdistance))
 				thisdata.append([twotetha, float(a[0]), float(a[1])])
 			line += 1
-		#print "Read data %d, found %d lines with intensities" % (i, len(thisdata))
+		#print ("Read data %d, found %d lines with intensities" % (i, len(thisdata)))
 		i += 1
 		data.append(thisdata)
 	toreturn = {}
@@ -633,7 +635,7 @@ class plotEsg(PyQt5.QtWidgets.QMainWindow):
 	Draws or redraws the plot
 	"""
 	def on_draw(self, event=None):
-		#print "We are in there"
+		#print ("We are in there")
 		# If we want to keep track of the zoom, we save the current zoom
 		if (not self.dounzoom):
 			left, right = self.axes.get_xlim()
@@ -1026,7 +1028,7 @@ class plotEsg(PyQt5.QtWidgets.QMainWindow):
 					try:
 						data[i,2] = data[i,2] - bg(twotheta)
 					except TypeError:
-						print "Small error in background subtraction, we keep going"
+						print ("Small error in background subtraction, we keep going")
 			self.esgData["data"][self.etaToPlot] = data.tolist()
 			# We change something. We should ask confirmation for saving before closing the app, we can also undo stuff from now on
 			self.needToSave = True
