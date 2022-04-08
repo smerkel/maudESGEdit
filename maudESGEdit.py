@@ -150,6 +150,8 @@ def parseESG(filename):
 			header = header + txt + "\n"
 			if (txt == "_pd_meas_intensity_total"):
 				test = False # We reached the end headers
+			if (txt == "_pd_calc_intensity_total"): # Files created by fit2d2maud write it this way
+				test = False # We reached the end headers
 			else:
 				# We search for information we need
 				a=txt.split()
