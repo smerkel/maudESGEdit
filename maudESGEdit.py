@@ -120,7 +120,13 @@ import copy
 #################################################################
 
 
-def parseESG(filename):
+def parseESG(qtParent,filename):
+	# Which type of esg? Can be 
+	# - inclinedReflection if detector type is "inclined reflection image"
+	# - flatTransmission if created by "Flat image transmission"
+	esgtype = "flatTransmission"
+	# detector distance (in mm)
+	detdistance = 200.
 	# Reads number of spectra found
 	text = open(filename).read()
 	nspectra = int(text.count('loop_'))
@@ -135,11 +141,48 @@ def parseESG(filename):
 	for num, line in enumerate(logcontent, 0):
 		if lookup in line:
 			linesdb.append(num)
+			
+	# First, evaluate the type of data (normalImage or flatImage) and detect or ask for the required parameters
+	line = linesdb[0]
+	test1 = 0
+	test2 = 0
+	while (test1*test2 == 0):
+		txt = logcontent[line]
+		line += 1
+		if (txt == "_pd_meas_intensity_total"): # We are probably reading data for a flatTransmission detector
+			esgtype = "flatTransmission"
+			endofheader = "_pd_meas_intensity_total"
+			test1 = 1
+		elif (txt == "_pd_calc_intensity_total"): # Files created by fit2d2maud write it this way, assumes a flat transmission detector
+			esgtype = "flatTransmission"
+			endofheader = "_pd_calc_intensity_total"
+			test1 = 1
+		elif (txt == "_pd_meas_position_x _pd_meas_position_y _pd_meas_intensity_total"): # We are probably reading data for a inclinedReflection detector
+			esgtype = "inclinedReflection"
+			endofheader = "_pd_meas_position_x _pd_meas_position_y _pd_meas_intensity_total"
+			test1 = 1
+		else:
+			# We search for information we need
+			a=txt.split()
+			if (len(a) > 0):
+				if (a[0] == "_pd_instr_dist_spec/detc"):
+					detdistance = float(a[1])
+					test2 = 1
+	if (esgtype == "inclinedReflection"):
+		# We would need the detector angles to recompute 2theta from the information in the file. We need to ask for it to the users
+		dialog = inclinedDetectorDialog(qtParent,detdistance)
+		result = dialog.exec_()
+		if (dialog.isOk()):
+			detdistance,detTTheta,detTilt,detRotation,detEta = dialog.getInputs()
+			# Prepare a detector to convert pixel positions in X and Y to 2theta
+			# X and Y centers are already corrected in this file (according to what was entered when they were created)
+			detector = AngularInclinedFlatImageCalibration(detdistance, 0., 0., detTTheta, detTilt, detRotation, detEta)
+		else:
+			return False
 	# For each spectrum, save header, etaangle, and data
 	headers = []
 	data = []
 	etas = []
-	detdistance = 0.
 	i = 0
 	for linestart in linesdb:
 		header = ""
@@ -148,16 +191,12 @@ def parseESG(filename):
 		while test:
 			txt = logcontent[line]
 			header = header + txt + "\n"
-			if (txt == "_pd_meas_intensity_total"):
-				test = False # We reached the end headers
-			if (txt == "_pd_calc_intensity_total"): # Files created by fit2d2maud write it this way
-				test = False # We reached the end headers
+			if (txt == endofheader):
+				test = False # We reached the end headers, data comes next
 			else:
 				# We search for information we need
 				a=txt.split()
 				if (len(a) > 0):
-					if (a[0] == "_pd_instr_dist_spec/detc"):
-						detdistance = float(a[1])
 					if (a[0] == "_pd_meas_angle_eta"):
 						eta = a[1]
 			line += 1
@@ -172,8 +211,15 @@ def parseESG(filename):
 			if (len(a) < 2):
 				test = False
 			else:
-				twotetha = math.degrees(math.atan(float(a[0])/detdistance))
-				thisdata.append([twotetha, float(a[0]), float(a[1])])
+				if (esgtype == "inclinedReflection"): # x, y, intensity (x and y are detector positions, in mm)
+					x = float(a[0])
+					y = float(a[1])
+					twotetha = detector.twoThetaFromXY(x,y)
+					intensity = float(a[2])
+					thisdata.append([twotetha, float(a[0]), float(a[2]), float(a[1])]) # PAY ATTENTION Inversion of items to 2 and 1 to have itensity at element 3 of the list! Most routines below assume intensity is on element 3 and do not need any adjustement
+				else: # 
+					twotetha = math.degrees(math.atan(float(a[0])/detdistance))
+					thisdata.append([twotetha, float(a[0]), float(a[1])])
 			line += 1
 		#print ("Read data %d, found %d lines with intensities" % (i, len(thisdata)))
 		i += 1
@@ -183,20 +229,35 @@ def parseESG(filename):
 	toreturn["data"] = data
 	toreturn["etas"] = etas
 	toreturn["detdistance"] = detdistance
+	toreturn["esgtype"] = esgtype
+	if (esgtype == "inclinedReflection"):
+		toreturn["detTTheta"] = detTTheta
+		toreturn["detTilt"] = detTilt
+		toreturn["detRotation"] = detRotation
+		toreturn["detEta"] = detEta
 	return toreturn
 
 def saveEsgToFile(esgData,filename):
 	headers = esgData["headers"]
 	data = esgData["data"]
 	neta = len(headers)
+	esgtype = esgData["esgtype"]
 	string = ""
-	for i in range(0,neta):
-		string += headers[i]
-		thisdata = data[i]
-		for j in range(0,len(thisdata)):
-			if (not(numpy.isnan(thisdata[j][2]))):
-				string += "%.2f %.8f\n" % (thisdata[j][1], thisdata[j][2])
-		string += "\n"
+	if (esgtype == "inclinedReflection"):
+		for i in range(0,neta):
+			string += headers[i]
+			thisdata = data[i]
+			for j in range(0,len(thisdata)):
+				if (not(numpy.isnan(thisdata[j][2]))):
+					string += "%.4f %.4f %.8f\n" % (thisdata[j][1], thisdata[j][3], thisdata[j][2])
+	else:
+		for i in range(0,neta):
+			string += headers[i]
+			thisdata = data[i]
+			for j in range(0,len(thisdata)):
+				if (not(numpy.isnan(thisdata[j][2]))):
+					string += "%.2f %.8f\n" % (thisdata[j][1], thisdata[j][2])
+			string += "\n"
 	# Ready to save
 	f = open(filename, 'w')
 	f.write(string)
@@ -248,7 +309,90 @@ def loadMaskFromFile(filename):
 				mask.append({"set":True, "eta": int(elts[0]), "clear2thetamin": float(elts[1]), "clear2thetamax": float(elts[2])})
 			line += 1
 	return mask
+
+
+
+#################################################################
+#
+# Class dedicated to Inclined Reflection Image
+#  Build from the MAUD source code at https://github.com/luttero/maud/
+#      - maud/src/it/unitn/ing/rista/diffr/cal/AngularInclinedFlatImageCalibration.java
+#      - maud/src/it/unitn/ing/rista/util/ConvertImageToSpectra.java
+#
+#################################################################
+
+class  AngularInclinedFlatImageCalibration():
+	def __init__(self, detectorDistance, centerX, centerY, detector2Theta, detectorPhiDA, detectorOmegaDN, detectorEtaDA):
+		"""
+		Send
+		- detector distance, center X and Y (in mm), as in MAUD
+		- detector angles in degrees: detector2Theta, detectorPhiDA, detectorOmegaDN, detectorEtaDA
+		"""
+		self.detectorDistance = detectorDistance
+		self.centerX = centerX
+		self.centerY = centerY
+		self.detector2Theta = detector2Theta
+		self.detectorPhiDA = detectorPhiDA
+		self.detectorOmegaDN = detectorOmegaDN
+		self.detectorEtaDA = detectorEtaDA
+		# Built t-matrix (used for calculations of 2 theta)
+		self.builtTMatrix()
+		
+	def builtTMatrix(self):
+		"""
+		Builds a transformation matrix based on detector orientation 
+		Created based on getTransformationMatrixNew from maud/src/it/unitn/ing/rista/util/ConvertImageToSpectra.java
+		"""
+		omegaDN = numpy.radians(self.detectorOmegaDN)
+		phiDA = numpy.radians(self.detectorPhiDA)
+		etaDA = numpy.radians(self.detectorEtaDA)
+		theta2DET = numpy.radians(self.detector2Theta)
+		# omega = 0.0 # Additional corrections from tilting angle I think. Leave it for now. Not even used in MAUD
+		cosOmegaDN = math.cos(omegaDN);
+		sinOmegaDN = math.sin(omegaDN);
+		cosPhiDA = math.cos(phiDA);
+		sinPhiDA = math.sin(phiDA);
+		cosTheta2DET = math.cos(theta2DET);
+		sinTheta2DET = math.sin(theta2DET);
+		cosEtaDA = math.cos(etaDA);
+		sinEtaDA = math.sin(etaDA);
+		a = numpy.array([[0.,0.,-1], [sinOmegaDN, cosOmegaDN, 0], [cosOmegaDN,  -sinOmegaDN, 0]])
+		# print("Omega detector rotation: ", a)
+		b = numpy.array([[cosPhiDA, sinPhiDA, 0], [-sinPhiDA, cosPhiDA, 0], [0, 0, 1]])
+		# print("Phi detector rotation: ", b)
+		tmat = numpy.dot(b,a)
+		a = numpy.array([[cosTheta2DET, 0, sinTheta2DET], [0, 1, 0], [-sinTheta2DET, 0, cosTheta2DET]])
+		# print("Two theta detector rotation: ", a)
+		b =  numpy.dot(a,tmat)
+		a = numpy.array([[1,0,0],[0, cosEtaDA, sinEtaDA], [0, -sinEtaDA, cosEtaDA]])
+		# print("Eta detector rotation: ", a)
+		self.tmat = numpy.dot(a,b)
+		# print("Full rotation", self.tmat)
 	
+	def get2ThetaFromXf(self,xf):
+		"""
+		Calculate 2theta from the coordinates for a detector position, after calibration
+		Build according maud/src/it/unitn/ing/rista/util/ConvertImageToSpectra.java
+		"""
+		z2 = xf[2,0]*xf[2,0]
+		y2 = xf[1,0]*xf[1,0]
+		x2 = xf[0,0]*xf[0,0]
+		a = math.sqrt(z2+y2)
+		if (abs(a) < 1.E-18):
+			return 0.
+		b = math.sqrt(x2+y2+z2)
+		twotetha = math.asin(a/b)
+		if (xf[0,0] > 0.):
+			twotetha = math.pi - twotetha
+		return twotetha
+	
+	def twoThetaFromXY(self,x,y):
+		# Convert x and y to position in real space, using detector calibration
+		xf = numpy.array([[x-self.centerX],[y-self.centerY],[self.detectorDistance]])
+		xf = numpy.dot(self.tmat,xf)
+		# Get 2 theta from xf
+		twothetadegrees = numpy.degrees(self.get2ThetaFromXf(xf))
+		return twothetadegrees
 
 #################################################################
 #
@@ -287,6 +431,63 @@ class textWindow(PyQt5.QtWidgets.QDialog):
 
 	def on_click(self):
 		self.close()
+
+#################################################################
+#
+# Special dialog for a inclined reflection image angles
+#
+#################################################################
+
+class inclinedDetectorDialog(PyQt5.QtWidgets.QDialog):
+	def __init__(self, parent, detDistance):
+		super(inclinedDetectorDialog, self).__init__(parent)
+		self.setWindowTitle("Properties of the inclined detector geometry")
+		
+		self.ok = False
+
+		self.detDistance = PyQt5.QtWidgets.QLineEdit(self)
+		self.detDistance.setText("%.3f" % detDistance)
+		self.detTTheta = PyQt5.QtWidgets.QLineEdit(self)
+		self.detTTheta.setText("%.0f" % 0)
+		# self.start.setValidator(PyQt5.QtGui.QDoubleValidator()) getting lost between French and English, let's stick to English numbers
+		self.detTilt = PyQt5.QtWidgets.QLineEdit(self)
+		self.detTilt.setText("%.0f" % 0)
+		self.detRotation = PyQt5.QtWidgets.QLineEdit(self)
+		self.detRotation.setText("%.0f" % 0)
+		self.detEta = PyQt5.QtWidgets.QLineEdit(self)
+		self.detEta.setText("%.0f" % 0)
+		buttonBox = PyQt5.QtWidgets.QDialogButtonBox(PyQt5.QtWidgets.QDialogButtonBox.Ok | PyQt5.QtWidgets.QDialogButtonBox.Cancel, self);
+
+		layout = PyQt5.QtWidgets.QFormLayout(self)
+		layout.addRow("Detector distance (mm)", self.detDistance)
+		layout.addRow("Detector 2theta (degrees)", self.detTTheta)
+		layout.addRow("Detector tilt (degrees)", self.detTilt)
+		layout.addRow("Detector rotation (degrees)", self.detRotation)
+		layout.addRow("Detector eta (degrees)", self.detEta)
+		layout.addWidget(buttonBox)
+
+		buttonBox.accepted.connect(self.accept)
+		buttonBox.rejected.connect(self.reject)
+		self.show()
+
+	def accept(self):
+		listToTest = [self.detDistance,self.detTTheta,self.detTilt,self.detRotation,self.detEta]
+		listText = ["Dectector distance", "Detector 2theta", "Detector tilt", "Detector rotation", "Detector eta"]
+		for i in range(0,len(listText)):
+			try:
+				x = float(listToTest[i].text())
+			except Exception:
+				PyQt5.QtWidgets.QMessageBox.critical(self, 'Error', listText[i] + " is not a number")
+				return
+		self.ok = True
+		self.close()
+
+	def getInputs(self):
+		return (float(self.detDistance.text()), float(self.detTTheta.text()), float(self.detTilt.text()), float(self.detRotation.text()), float(self.detEta.text()))
+	
+	def isOk(self):
+		return self.ok
+
 
 #################################################################
 #
@@ -935,7 +1136,7 @@ class plotEsg(PyQt5.QtWidgets.QMainWindow):
 		options = PyQt5.QtWidgets.QFileDialog.Options()
 		filename, _ = PyQt5.QtWidgets.QFileDialog.getOpenFileName(self,"Select an ESG file...", "","Esg Files (*.esg);;All Files (*)", options=options)
 		if filename:
-			self.esgData = parseESG(filename)
+			self.esgData = parseESG(self,filename)
 			path, name = os.path.split(filename)
 			self.title = "MAUD ESG edit: " + name
 			self.filename = filename
