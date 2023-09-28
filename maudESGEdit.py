@@ -1137,23 +1137,24 @@ class plotEsg(PyQt5.QtWidgets.QMainWindow):
 		filename, _ = PyQt5.QtWidgets.QFileDialog.getOpenFileName(self,"Select an ESG file...", "","Esg Files (*.esg);;All Files (*)", options=options)
 		if filename:
 			self.esgData = parseESG(self,filename)
-			path, name = os.path.split(filename)
-			self.title = "MAUD ESG edit: " + name
-			self.filename = filename
-			self.fileSaveHint = filename
-			self.nEta = len(self.esgData["etas"])
-			self.etaLabel.setText("Spectrum (0-%d) : " % (self.nEta-1))
-			self.etaToPlot = 0
-			self.etaNBox.setText("%d" % (self.etaToPlot))
-			self.olddata = [] # Deleting cached old data to avoid confusion
-			self.mask = []	# clear mask
-			self.setWindowTitle(self.title)
-			self.needToSave = False
-			self.tthetaButton.setDisabled(False)
-			self.subtractBgButton.setDisabled(True)
-			self.xbg = []				# Used for creating background
-			self.ybg = []				# Used for creating background
-			self.on_draw()
+			if (self.esgData != False):
+				path, name = os.path.split(filename)
+				self.title = "MAUD ESG edit: " + name
+				self.filename = filename
+				self.fileSaveHint = filename
+				self.nEta = len(self.esgData["etas"])
+				self.etaLabel.setText("Spectrum (0-%d) : " % (self.nEta-1))
+				self.etaToPlot = 0
+				self.etaNBox.setText("%d" % (self.etaToPlot))
+				self.olddata = [] # Deleting cached old data to avoid confusion
+				self.mask = []	# clear mask
+				self.setWindowTitle(self.title)
+				self.needToSave = False
+				self.tthetaButton.setDisabled(False)
+				self.subtractBgButton.setDisabled(True)
+				self.xbg = []				# Used for creating background
+				self.ybg = []				# Used for creating background
+				self.on_draw()
 		#else:
 		#	PyQt5.QtWidgets.QMessageBox.critical(self, "Error", "File opening failed")
 	
