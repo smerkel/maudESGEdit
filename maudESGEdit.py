@@ -120,7 +120,7 @@ import copy
 #################################################################
 
 
-def parseESG(qtParent,filename):
+def parseESG(qtParent,filename, detparams=None):
 	# Which type of esg? Can be 
 	# - inclinedReflection if detector type is "inclined reflection image"
 	# - flatTransmission if created by "Flat image transmission"
@@ -170,7 +170,14 @@ def parseESG(qtParent,filename):
 					test2 = 1
 	if (esgtype == "inclinedReflection"):
 		# We would need the detector angles to recompute 2theta from the information in the file. We need to ask for it to the users
-		dialog = inclinedDetectorDialog(qtParent,detdistance)
+		if (detparams != None):
+			if (detparams[0] == "inclinedReflection"): # If detector parameters have been set in a previous load, we re-use them
+				dialog = inclinedDetectorDialog(qtParent,detparams[1], detparams[2], detparams[3], detparams[4], detparams[5])
+				# param = ["inclinedReflection", self.esgData["detdistance"] , self.esgData["detTTheta"],  self.esgData["detTilt"],  self.esgData["detRotation"] , self.esgData["etEta"] ]
+			else:
+				dialog = inclinedDetectorDialog(qtParent,detdistance)
+		else:
+			dialog = inclinedDetectorDialog(qtParent,detdistance)
 		result = dialog.exec_()
 		if (dialog.isOk()):
 			detdistance,detTTheta,detTilt,detRotation,detEta = dialog.getInputs()
@@ -250,6 +257,7 @@ def saveEsgToFile(esgData,filename):
 			for j in range(0,len(thisdata)):
 				if (not(numpy.isnan(thisdata[j][2]))):
 					string += "%.4f %.4f %.8f\n" % (thisdata[j][1], thisdata[j][3], thisdata[j][2])
+			string += "\n"
 	else:
 		for i in range(0,neta):
 			string += headers[i]
@@ -439,7 +447,7 @@ class textWindow(PyQt5.QtWidgets.QDialog):
 #################################################################
 
 class inclinedDetectorDialog(PyQt5.QtWidgets.QDialog):
-	def __init__(self, parent, detDistance):
+	def __init__(self, parent, detDistance, detTTheta=0.0, detTilt=0.0, detRotation=0.0, detEta=0.0):
 		super(inclinedDetectorDialog, self).__init__(parent)
 		self.setWindowTitle("Properties of the inclined detector geometry")
 		
@@ -448,14 +456,14 @@ class inclinedDetectorDialog(PyQt5.QtWidgets.QDialog):
 		self.detDistance = PyQt5.QtWidgets.QLineEdit(self)
 		self.detDistance.setText("%.3f" % detDistance)
 		self.detTTheta = PyQt5.QtWidgets.QLineEdit(self)
-		self.detTTheta.setText("%.0f" % 0)
+		self.detTTheta.setText("%.0f" % detTTheta)
 		# self.start.setValidator(PyQt5.QtGui.QDoubleValidator()) getting lost between French and English, let's stick to English numbers
 		self.detTilt = PyQt5.QtWidgets.QLineEdit(self)
-		self.detTilt.setText("%.0f" % 0)
+		self.detTilt.setText("%.0f" % detTilt)
 		self.detRotation = PyQt5.QtWidgets.QLineEdit(self)
-		self.detRotation.setText("%.0f" % 0)
+		self.detRotation.setText("%.0f" % detRotation)
 		self.detEta = PyQt5.QtWidgets.QLineEdit(self)
-		self.detEta.setText("%.0f" % 0)
+		self.detEta.setText("%.0f" % detEta)
 		buttonBox = PyQt5.QtWidgets.QDialogButtonBox(PyQt5.QtWidgets.QDialogButtonBox.Ok | PyQt5.QtWidgets.QDialogButtonBox.Cancel, self);
 
 		layout = PyQt5.QtWidgets.QFormLayout(self)
@@ -1136,7 +1144,16 @@ class plotEsg(PyQt5.QtWidgets.QMainWindow):
 		options = PyQt5.QtWidgets.QFileDialog.Options()
 		filename, _ = PyQt5.QtWidgets.QFileDialog.getOpenFileName(self,"Select an ESG file...", "","Esg Files (*.esg);;All Files (*)", options=options)
 		if filename:
-			self.esgData = parseESG(self,filename)
+			try:
+				self.esgData["esgtype"] # the esg was set if this does not fail
+				if (self.esgData["esgtype"] == "inclinedReflection"): # if we already have predefine detector info, we send them so they can be reused
+					params = ["inclinedReflection", self.esgData["detdistance"] , self.esgData["detTTheta"],  self.esgData["detTilt"],  self.esgData["detRotation"] , self.esgData["detEta"] ]
+					self.esgData = parseESG(self,filename, params)
+				else:
+					self.esgData = parseESG(self,filename)
+			except AttributeError:
+				# ESG was not set already. We simply load the file
+				self.esgData = parseESG(self,filename)
 			if (self.esgData != False):
 				path, name = os.path.split(filename)
 				self.title = "MAUD ESG edit: " + name
