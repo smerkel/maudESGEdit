@@ -34,7 +34,7 @@ aboutWindowText = """
 
 helpWindowText = """
 <h3>MAUD ESG editor</h3>
-(c) 2020, S. Merkel, Univ. Lille
+(c) 2020-now, S. Merkel, Univ. Lille
 <P>This programs allows for<ul>
 <li>Removing rubbish data points, due to detector gaps, for instance,</li>
 <li>Removing and correction your background.</li>
