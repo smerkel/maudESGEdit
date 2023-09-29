@@ -11,12 +11,13 @@ This program is free software; you can redistribute it and/or modify it under th
 
 The source code is available online at https://github.com/smerkel/maudESGEdit/. 
 
-## Extract from the User Manual (see help -> user manual for more)
+## Extract from the User Manual
 
 This programs allows for
  * Removing rubbish data points, due to detector gaps, for instance,
  * Removing and correction your background.
 
+You will find a short manual below. The application includes a built-in manual within *Help > User manual* menu item which may be more up-to-date.
 
 ### Rubbish data points
 
