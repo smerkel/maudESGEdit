@@ -25,54 +25,69 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 # Some text for the GUI. I put it on top so it is easier to upate
 bottomWindowLabel = "Utility to fix data in esg files for MAUD (c) 2020-now, S. Merkel, Univ. Lille"
 aboutWindowText = """
-<h3>MAUD ESG editor</h3>
-(c) 2020-now, S. Merkel, Univ. Lille
-<P>Utility to fix data in ESG files before Rietveld refinement in MAUD.</P>
-<P>This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.</P>
-<P>The source code is available online at https://github.com/smerkel/maudESGEdit/.</P>
+## MAUD ESG editor
+
+&copy; 2020-now, S. Merkel, Univ. Lille
+
+Utility to fix data in ESG files before Rietveld refinement in MAUD.
+
+This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
+
+The source code is available online at https://github.com/smerkel/maudESGEdit/.
 """
 
 helpWindowText = """
-<h3>MAUD ESG editor</h3>
-(c) 2020-now, S. Merkel, Univ. Lille
-<P>This programs allows for<ul>
-<li>Removing rubbish data points, due to detector gaps, for instance,</li>
-<li>Removing and correction your background.</li>
-</ul>
+## MAUD ESG editor
+&copy; 2020-now, S. Merkel, Univ. Lille
 
-<h4>Rubbish data points</h4>
-<P>Rubbish data points occur when you  have either a parasite signal or gaps in your data collection. MAUD can exclude 2theta ranges, but will fail if the parasite signals occur at inconsistent 2theta values. This utility allows to browse through all azimuth in an ESG file and remove these rubbish data points.</P>
-<P>How to proceed to remove rubbish data points?<ul>
-<li>Click on the zoom icon before you start, to activate the zoom mode,</li>
-<li>Zoom-in on the data points you wish to remove,</li>
-<li>Click on <i>Remove data points</i> or hit <i>Ctr-d</i>.</li>
-</ul>
+This programs allows for
+ * Removing rubbish data points, due to detector gaps, for instance,
+ * Removing and correction your background.
 
-<h4>Background</h4>
-<P>First, if your background can be treated in MAUD, treat them in MAUD. It is always a million times better to fit your signal within a single software with clear hypothesis for the modeling of experimental data. This utility is for hopeless cases, inconsistent detector chips inducing jumps in the overall background level, for instance.</P>
-<P>How to subtract background?<ul>
-<li>Right click to generate background points (background interpolation is linear),</li>
-<li>Select <i>Subtract background</i> when you have enough points.</li>
-</ul>
+This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version. The source code is available online at https://github.com/smerkel/maudESGEdit/.
 
-<h4>Baseline intensity</h4>
-<P>MAUD will fail with negative or zero intensity points. It actually is a feature, but can really throw you off with some datas. Your refinement will diverge. To fix this, You can<ul>
-<li>Add a fixed intensity to the data at the current azimuth by selecting <i>Shift dataset...</i>,</li>
-<li>Add a fixed intensity to the data at all azimuth by selecting <i>Shift all datasets...</i>,</li>
-<li>Set the minimum intensity at all azimuth by selecting <i>Set value for minimum intensity...</i>. For each azimuth, the program will evaluate the current intensity minimum and add the necessary shift to bring the minimum intensity to the value decided by the user. This operation is typically performed at the end, once you have edited data for all azimuth.</li>
-</ul>
+### Rubbish data points
 
-<h4>Navigation and file management</h4>
-<P>You can navigate between spectra using the <i>Previous</i> or <i>Next</i> buttons or by using the <i>left</i> and <i>right</i> keyboard keys.</P>
-<P>When you are done, save your new data in a new ESG file.</P>
+Rubbish data points occur when you  have either a parasite signal or gaps in your data collection. MAUD can exclude 2theta ranges, but will fail if the parasite signals occur at inconsistent 2theta values. This utility allows to browse through all azimuth in an ESG file and remove these rubbish data points.
 
-<h4>Masks</h4>
-<P>As you remove rubbish data points, we record 2theta ranges along with the corresponding azimuths. You can save these ranges in a file, with a <i>msk</i> extension to reuse them later.</P>
-<P>If you want to remove the same data ranges as in a previous processing, use the <i>Mask -> Load and apply mask<i>menu item.</P>
+How to proceed to remove rubbish data points?
+ * Click on the zoom icon before you start, to activate the zoom mode,
+ * Zoom-in on the data points you wish to remove,
+ * Click on *Remove data points* or hit *Ctr-d*.
 
-<h4>Final note</h4>
-<P>Is this data manipulation? If you use this sotware to remove actual data, it is. If you use this software to clean up spectra (due to gaps in your detectors, for instance), it is not.</P>
-<P>Good luck with your data!</P>
+
+### Background
+
+First, if your background can be treated in MAUD, treat them in MAUD. It is always a million times better to fit your signal within a single software with clear hypothesis for the modeling of experimental data. This utility is for hopeless cases, inconsistent detector chips inducing jumps in the overall background level, for instance.
+
+How to subtract background?
+ * Right click to generate background points (background interpolation is linear),
+ * Select *Subtract background* when you have enough points.
+
+### Baseline intensity
+
+MAUD will fail with negative or zero intensity points. It actually is a feature, but can really throw you off with some datas. Your refinement will diverge. To fix this, You can
+ * Add a fixed intensity to the data at the current azimuth by selecting *Shift dataset...*,
+ * Add a fixed intensity to the data at all azimuth by selecting *Shift all datasets...*,
+ * Set the minimum intensity at all azimuth by selecting *Set value for minimum intensity...*. For each azimuth, the program will evaluate the current intensity minimum and add the necessary shift to bring the minimum intensity to the value decided by the user. This operation is typically performed at the end, once you have edited data for all azimuth.
+
+### Navigation and file management
+
+You can navigate between spectra using the *Previous* or *Next* buttons or by using the *left* and *right* keyboard keys.
+
+When you are done, save your new data in a new ESG file.
+
+### Masks
+
+As you remove rubbish data points, we record 2theta ranges along with the corresponding azimuths. You can save these ranges in a file, with a *msk* extension to reuse them later.
+
+If you want to remove the same data ranges as in a previous processing, use the *Mask -> Load and apply mask*menu item.
+
+### Final note
+
+Is this data manipulation? If you use this sotware to remove actual data, it is. If you use this software to clean up spectra (due to gaps in your detectors, for instance), it is not.
+
+Good luck with your data!
 """
 
 # System functions, to manipulate command line arguments
@@ -416,8 +431,9 @@ class textWindow(PyQt5.QtWidgets.QDialog):
 		self.setWindowTitle(title) 
 
 		# Add text field
-		self.b = PyQt5.QtWidgets.QTextEdit(self)
-		self.b.setHtml(content)
+		self.b = PyQt5.QtWidgets.QTextBrowser(self)
+		self.b.setMarkdown(content)
+		self.b.setOpenExternalLinks(True)
 		
 		# connect button to function on_click
 		button = PyQt5.QtWidgets.QPushButton("Close window", self)
