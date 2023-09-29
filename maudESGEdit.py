@@ -582,12 +582,12 @@ class TThethaRangeDialog(PyQt5.QtWidgets.QDialog):
 
 # Various matplotlib tricks to adapt the GUI to what we want
 #
-# Access the forward and backward keys in mathplotlib and use them to move between grains
+# Access the forward and backward keys in mathplotlib and use them to move between datasets
 # Inspired from 
 # - https://stackoverflow.com/questions/14896580/matplotlib-hooking-in-to-home-back-forward-button-events
 # - https://stackoverflow.com/questions/37506260/adding-an-item-in-matplotlib%C2%B4s-toolbar
 #
-# Click on peak and get information on h,k,l, diffraction angles, and indexing errors
+# Not used after all (forgot why). The gui is working ok without it.
 #
 
 #def new_forward(self, *args, **kwargs):
