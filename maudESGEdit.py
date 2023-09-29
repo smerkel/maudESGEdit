@@ -604,12 +604,12 @@ class TThethaRangeDialog(PyQt5.QtWidgets.QDialog):
 	#self.canvas.callbacks.process(s, event)
 	## backward(self, *args, **kwargs) # If you wanted to still call the old backward event
 
-def new_home(self, *args, **kwargs):
-    s = 'home_event'
-    event = Event(s, self)
-    event.foo = 100
-    self.canvas.callbacks.process(s, event)
-    #home(self, *args, **kwargs)
+# def new_home(self, *args, **kwargs):
+#    s = 'home_event'
+#    event = Event(s, self)
+#    event.foo = 100
+#    self.canvas.callbacks.process(s, event)
+#     home(self, *args, **kwargs)
 
 NavigationToolbar.toolitems = (
 	('Home', 'Reset original view', 'home', 'home'), 
@@ -622,7 +622,7 @@ NavigationToolbar.toolitems = (
 	('Save', 'Save the figure', 'filesave', 'save_figure'))
 	#(None, None, None, None))
 
-NavigationToolbar.home = new_home
+# NavigationToolbar.home = new_home
 
 class plotEsg(PyQt5.QtWidgets.QMainWindow):
 	
