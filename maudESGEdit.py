@@ -111,6 +111,9 @@ import PyQt5.QtCore
 import PyQt5.QtGui
 import base64
 
+# Will be used to test QT version number, if needed
+from packaging import version
+
 # Maths stuff
 import numpy
 import math
@@ -432,7 +435,10 @@ class textWindow(PyQt5.QtWidgets.QDialog):
 
 		# Add text field
 		self.b = PyQt5.QtWidgets.QTextBrowser(self)
-		self.b.setMarkdown(content)
+		if (version.parse(PyQt5.QtCore.PYQT_VERSION_STR) > version.parse("5.14")): # Older QT version do not support markdown
+			self.b.setMarkdown(content)
+		else:
+			self.b.setText(content)
 		self.b.setOpenExternalLinks(True)
 		
 		# connect button to function on_click
