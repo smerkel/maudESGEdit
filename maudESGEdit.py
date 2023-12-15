@@ -399,6 +399,7 @@ class  AngularInclinedFlatImageCalibration():
 		"""
 		Calculate 2theta from the coordinates for a detector position, after calibration
 		Build according maud/src/it/unitn/ing/rista/util/ConvertImageToSpectra.java
+  		Calculation of eta in addition to 2theta could be extracted from line 793 in https://github.com/luttero/maud/blob/version2/src/it/unitn/ing/rista/util/ConvertImageToSpectra.java
 		"""
 		z2 = xf[2,0]*xf[2,0]
 		y2 = xf[1,0]*xf[1,0]
